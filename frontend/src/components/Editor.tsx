@@ -9,7 +9,7 @@ import { common, createLowlight } from "lowlight";
 
 const lowlight = createLowlight(common);
 
-const API_URL = "http://localhost:3001/api";
+const API_URL = "/api";
 
 interface EditorProps {
   initialData?: {
