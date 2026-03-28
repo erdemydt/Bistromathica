@@ -64,7 +64,7 @@ try {
     btn.addEventListener('click', async () => {
       const slug = (btn as HTMLElement).dataset.slug;
       if (!confirm('Delete this draft?')) return;
-      const res = await fetch(`http://localhost:3001/api/posts/${slug}`, {
+      const res = await fetch(`/api/posts/${slug}`, {
         method: 'DELETE',
         credentials: 'include',
       });

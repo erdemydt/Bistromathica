@@ -56,7 +56,7 @@ router.post('/register',
       const isFirstUser = parseInt(userCount.rows[0].count) === 0;
       const isAdminEmail = process.env.ADMIN_EMAIL && email === process.env.ADMIN_EMAIL;
       const role = (isFirstUser || isAdminEmail) ? 'admin' : 'user';
-      const approved = (isFirstUser || isAdminEmail) ? true : false;
+      const approved = true;
 
       await pool.query(
         'INSERT INTO users (username, email, password_hash, role, approved) VALUES ($1, $2, $3, $4, $5)',
