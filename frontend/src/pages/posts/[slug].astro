@@ -1,0 +1,186 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import CommentSection from '../../components/CommentSection';
+import { serverFetch } from '../../lib/api';
+import { formatDate, calculateReadingTime } from '../../lib/utils';
+import { codeToHtml } from 'shiki';
+
+const { slug } = Astro.params;
+const cookie = Astro.request.headers.get('cookie') || '';
+
+const res = await serverFetch(`/posts/${slug}`, cookie);
+if (!res.ok) {
+  return new Response(null, { status: 404 });
+}
+
+const post = await res.json();
+const readingTime = calculateReadingTime(post.body);
+
+// Get current user for comment section
+let user = null;
+try {
+  const authRes = await serverFetch('/auth/me', cookie);
+  if (authRes.ok) {
+    user = await authRes.json();
+  }
+} catch {}
+
+// Process code blocks with Shiki for syntax highlighting
+let processedBody = post.body;
+const codeBlockRegex = /<pre><code(?:\s+class="language-(\w+)")?>([\s\S]*?)<\/code><\/pre>/g;
+const matches = [...processedBody.matchAll(codeBlockRegex)];
+
+for (const match of matches) {
+  const lang = match[1] || 'text';
+  const code = match[2]
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+
+  try {
+    const highlighted = await codeToHtml(code, {
+      lang,
+      theme: 'github-dark',
+    });
+    processedBody = processedBody.replace(match[0], highlighted);
+  } catch {
+    // If language not supported, leave as-is
+  }
+}
+---
+
+<BaseLayout title={post.title}>
+  <article class="post">
+    {post.cover_image && (
+      <img src={post.cover_image} alt={post.title} class="post-cover" />
+    )}
+
+    <header class="post-header">
+      <h1>{post.title}</h1>
+      <div class="post-meta meta">
+        <span>By {post.author}</span>
+        <span>&middot;</span>
+        <span>{formatDate(post.published_at || post.created_at)}</span>
+        <span>&middot;</span>
+        <span>{readingTime} min read</span>
+      </div>
+      {post.tags && post.tags.length > 0 && (
+        <div class="post-tags">
+          {post.tags.map((tag: any) => (
+            <a href={`/?tag=${tag.slug}`} class="tag">{tag.name}</a>
+          ))}
+        </div>
+      )}
+    </header>
+
+    <div class="post-body" set:html={processedBody} />
+
+    {post.status === 'draft' && (
+      <div class="draft-banner">This post is a draft and is only visible to you.</div>
+    )}
+  </article>
+
+  <hr />
+
+  <section class="comments-section">
+    <h2>Comments ({post.comments?.length || 0})</h2>
+    <CommentSection
+      client:visible
+      postSlug={slug!}
+      initialComments={post.comments || []}
+      currentUser={user}
+      postAuthorId={post.author_id}
+    />
+  </section>
+</BaseLayout>
+
+<style>
+  .post-cover {
+    width: 100%;
+    max-height: 400px;
+    object-fit: cover;
+    border-radius: 10px;
+    margin-bottom: 1.5rem;
+  }
+
+  .post-header {
+    margin-bottom: 2rem;
+  }
+
+  .post-header h1 {
+    font-size: 2.25rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .post-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .post-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .post-body {
+    line-height: 1.8;
+  }
+
+  .post-body :global(p) {
+    margin-bottom: 1.25rem;
+  }
+
+  .post-body :global(h1),
+  .post-body :global(h2),
+  .post-body :global(h3) {
+    margin-top: 2rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .post-body :global(ul),
+  .post-body :global(ol) {
+    margin-bottom: 1.25rem;
+    padding-left: 1.5rem;
+  }
+
+  .post-body :global(li) {
+    margin-bottom: 0.25rem;
+  }
+
+  .post-body :global(blockquote) {
+    margin: 1.5rem 0;
+  }
+
+  .post-body :global(pre) {
+    margin: 1.5rem 0;
+  }
+
+  .draft-banner {
+    background: #fef3c7;
+    color: #92400e;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-family: var(--font-ui);
+    font-size: 0.875rem;
+    margin-top: 1rem;
+  }
+
+  .comments-section {
+    margin-top: 2rem;
+  }
+
+  .comments-section h2 {
+    margin-bottom: 1rem;
+  }
+
+  @media (max-width: 640px) {
+    .post-header h1 {
+      font-size: 1.75rem;
+    }
+  }
+</style>

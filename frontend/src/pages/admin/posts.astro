@@ -1,0 +1,169 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { serverFetch } from '../../lib/api';
+import { formatDate } from '../../lib/utils';
+
+const cookie = Astro.request.headers.get('cookie') || '';
+
+let user = null;
+try {
+  const authRes = await serverFetch('/auth/me', cookie);
+  if (authRes.ok) {
+    user = await authRes.json();
+  }
+} catch {}
+
+if (!user || user.role !== 'admin') {
+  return Astro.redirect('/');
+}
+
+let posts: any[] = [];
+try {
+  const res = await serverFetch('/admin/posts', cookie);
+  if (res.ok) {
+    const data = await res.json();
+    posts = data.posts;
+  }
+} catch {}
+---
+
+<BaseLayout title="Admin - Posts">
+  <h1>Post Management</h1>
+
+  <nav class="admin-nav">
+    <a href="/admin">Pending Approvals</a>
+    <a href="/admin/users">Users</a>
+    <a href="/admin/posts" class="active">Posts</a>
+    <a href="/admin/comments">Comments</a>
+  </nav>
+
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Author</th>
+          <th>Status</th>
+          <th>Created</th>
+          <th>Comments</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {posts.map((p) => (
+          <tr>
+            <td><a href={`/posts/${p.slug}`}>{p.title}</a></td>
+            <td>{p.author}</td>
+            <td>
+              <select class="status-select" data-id={p.id} data-current={p.status}>
+                <option value="draft" selected={p.status === 'draft'}>Draft</option>
+                <option value="published" selected={p.status === 'published'}>Published</option>
+              </select>
+            </td>
+            <td>{formatDate(p.created_at)}</td>
+            <td>{p.comment_count}</td>
+            <td>
+              <button class="btn btn-danger btn-sm delete-post-btn" data-id={p.id}>Delete</button>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</BaseLayout>
+
+<script>
+  const API = 'http://localhost:3001/api';
+
+  document.querySelectorAll('.status-select').forEach((select) => {
+    select.addEventListener('change', async (e) => {
+      const el = e.target as HTMLSelectElement;
+      const id = el.dataset.id;
+      const status = el.value;
+      const res = await fetch(`${API}/admin/posts/${id}/status`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) {
+        alert('Failed to update status');
+        el.value = el.dataset.current!;
+      } else {
+        el.dataset.current = status;
+      }
+    });
+  });
+
+  document.querySelectorAll('.delete-post-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = (btn as HTMLElement).dataset.id;
+      if (!confirm('Delete this post and all its comments?')) return;
+      const res = await fetch(`${API}/admin/posts/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (res.ok) window.location.reload();
+    });
+  });
+</script>
+
+<style>
+  .admin-nav {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--color-border);
+    font-family: var(--font-ui);
+    font-size: 0.875rem;
+  }
+
+  .admin-nav a {
+    color: var(--color-text-muted);
+    font-weight: 500;
+    padding: 0.25rem 0;
+  }
+
+  .admin-nav a.active,
+  .admin-nav a:hover {
+    color: var(--color-accent);
+    border-bottom: 2px solid var(--color-accent);
+  }
+
+  .table-wrapper {
+    overflow-x: auto;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-ui);
+    font-size: 0.875rem;
+  }
+
+  th, td {
+    text-align: left;
+    padding: 0.75rem 0.5rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  th {
+    font-weight: 600;
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .status-select {
+    width: auto;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  .btn-sm {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.75rem;
+  }
+</style>

@@ -1,0 +1,131 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { serverFetch } from '../lib/api';
+import { formatDate } from '../lib/utils';
+
+const cookie = Astro.request.headers.get('cookie') || '';
+
+let user = null;
+try {
+  const authRes = await serverFetch('/auth/me', cookie);
+  if (authRes.ok) {
+    user = await authRes.json();
+  }
+} catch {}
+
+if (!user) {
+  return Astro.redirect('/login');
+}
+
+let drafts: any[] = [];
+try {
+  const res = await serverFetch('/posts/drafts', cookie);
+  if (res.ok) {
+    const data = await res.json();
+    drafts = data.posts;
+  }
+} catch {}
+---
+
+<BaseLayout title="My Drafts">
+  <h1>My Drafts</h1>
+
+  {drafts.length === 0 ? (
+    <div class="empty-state">
+      <p>No drafts yet. <a href="/write">Write something!</a></p>
+    </div>
+  ) : (
+    <div class="drafts-list">
+      {drafts.map((draft) => (
+        <div class="draft-item">
+          <div class="draft-info">
+            <h3><a href={`/write?edit=${draft.slug}`}>{draft.title}</a></h3>
+            <p class="meta">Last updated: {formatDate(draft.updated_at)}</p>
+            {draft.tags && draft.tags.length > 0 && (
+              <div class="draft-tags">
+                {draft.tags.map((tag: any) => (
+                  <span class="tag">{tag.name}</span>
+                ))}
+              </div>
+            )}
+          </div>
+          <div class="draft-actions">
+            <a href={`/write?edit=${draft.slug}`} class="btn">Edit</a>
+            <button class="btn btn-danger" data-slug={draft.slug}>Delete</button>
+          </div>
+        </div>
+      ))}
+    </div>
+  )}
+</BaseLayout>
+
+<script>
+  document.querySelectorAll('.btn-danger[data-slug]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const slug = (btn as HTMLElement).dataset.slug;
+      if (!confirm('Delete this draft?')) return;
+      const res = await fetch(`http://localhost:3001/api/posts/${slug}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        window.location.reload();
+      }
+    });
+  });
+</script>
+
+<style>
+  .empty-state {
+    text-align: center;
+    padding: 4rem 1rem;
+    color: var(--color-text-muted);
+  }
+
+  .drafts-list {
+    margin-top: 1.5rem;
+  }
+
+  .draft-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+    background: var(--color-surface);
+  }
+
+  .draft-info h3 {
+    font-size: 1.125rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .draft-info h3 a {
+    color: var(--color-text);
+  }
+
+  .draft-info h3 a:hover {
+    color: var(--color-accent);
+  }
+
+  .draft-tags {
+    display: flex;
+    gap: 0.3rem;
+    margin-top: 0.25rem;
+  }
+
+  .draft-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 640px) {
+    .draft-item {
+      flex-direction: column;
+    }
+  }
+</style>

@@ -1,0 +1,147 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { serverFetch } from '../../lib/api';
+import { formatDate } from '../../lib/utils';
+
+const cookie = Astro.request.headers.get('cookie') || '';
+
+let user = null;
+try {
+  const authRes = await serverFetch('/auth/me', cookie);
+  if (authRes.ok) {
+    user = await authRes.json();
+  }
+} catch {}
+
+if (!user || user.role !== 'admin') {
+  return Astro.redirect('/');
+}
+
+let comments: any[] = [];
+try {
+  const res = await serverFetch('/admin/comments', cookie);
+  if (res.ok) {
+    const data = await res.json();
+    comments = data.comments;
+  }
+} catch {}
+---
+
+<BaseLayout title="Admin - Comments">
+  <h1>Comment Management</h1>
+
+  <nav class="admin-nav">
+    <a href="/admin">Pending Approvals</a>
+    <a href="/admin/users">Users</a>
+    <a href="/admin/posts">Posts</a>
+    <a href="/admin/comments" class="active">Comments</a>
+  </nav>
+
+  {comments.length === 0 ? (
+    <p class="meta">No comments yet.</p>
+  ) : (
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Comment</th>
+            <th>Post</th>
+            <th>Author</th>
+            <th>Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {comments.map((c) => (
+            <tr>
+              <td class="comment-cell">{c.body.length > 80 ? c.body.substring(0, 80) + '...' : c.body}</td>
+              <td><a href={`/posts/${c.post_slug}`}>{c.post_title}</a></td>
+              <td>{c.author}</td>
+              <td>{formatDate(c.created_at)}</td>
+              <td>
+                <button class="btn btn-danger btn-sm delete-comment-btn" data-id={c.id}>Delete</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
+</BaseLayout>
+
+<script>
+  const API = 'http://localhost:3001/api';
+
+  document.querySelectorAll('.delete-comment-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = (btn as HTMLElement).dataset.id;
+      if (!confirm('Delete this comment?')) return;
+      const res = await fetch(`${API}/admin/comments/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (res.ok) window.location.reload();
+    });
+  });
+</script>
+
+<style>
+  .admin-nav {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--color-border);
+    font-family: var(--font-ui);
+    font-size: 0.875rem;
+  }
+
+  .admin-nav a {
+    color: var(--color-text-muted);
+    font-weight: 500;
+    padding: 0.25rem 0;
+  }
+
+  .admin-nav a.active,
+  .admin-nav a:hover {
+    color: var(--color-accent);
+    border-bottom: 2px solid var(--color-accent);
+  }
+
+  .table-wrapper {
+    overflow-x: auto;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-ui);
+    font-size: 0.875rem;
+  }
+
+  th, td {
+    text-align: left;
+    padding: 0.75rem 0.5rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  th {
+    font-weight: 600;
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .comment-cell {
+    max-width: 250px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .btn-sm {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.75rem;
+  }
+</style>

@@ -1,0 +1,105 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PostCard from '../components/PostCard.astro';
+import { serverFetch } from '../lib/api';
+
+const page = parseInt(Astro.url.searchParams.get('page') || '1');
+const tag = Astro.url.searchParams.get('tag') || '';
+
+let queryString = `?page=${page}&limit=10`;
+if (tag) queryString += `&tag=${tag}`;
+
+let posts: any[] = [];
+let pagination = { page: 1, limit: 10, total: 0, totalPages: 1 };
+
+try {
+  const res = await serverFetch(`/posts${queryString}`);
+  if (res.ok) {
+    const data = await res.json();
+    posts = data.posts;
+    pagination = data.pagination;
+  }
+} catch {}
+---
+
+<BaseLayout title="Blog">
+  {tag && (
+    <div class="filter-bar">
+      <span>Filtered by tag: <strong>{tag}</strong></span>
+      <a href="/">Clear filter</a>
+    </div>
+  )}
+
+  {posts.length === 0 ? (
+    <div class="empty-state">
+      <p>No posts yet.</p>
+    </div>
+  ) : (
+    <div class="post-list">
+      {posts.map((post) => (
+        <PostCard
+          title={post.title}
+          slug={post.slug}
+          excerpt={post.excerpt}
+          cover_image={post.cover_image}
+          author={post.author}
+          published_at={post.published_at}
+          tags={post.tags}
+          comment_count={post.comment_count}
+        />
+      ))}
+    </div>
+  )}
+
+  {pagination.totalPages > 1 && (
+    <nav class="pagination">
+      {pagination.page > 1 && (
+        <a href={`/?page=${pagination.page - 1}${tag ? `&tag=${tag}` : ''}`} class="btn">
+          Previous
+        </a>
+      )}
+      <span class="pagination-info">
+        Page {pagination.page} of {pagination.totalPages}
+      </span>
+      {pagination.page < pagination.totalPages && (
+        <a href={`/?page=${pagination.page + 1}${tag ? `&tag=${tag}` : ''}`} class="btn">
+          Next
+        </a>
+      )}
+    </nav>
+  )}
+</BaseLayout>
+
+<style>
+  .filter-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: #fef3c7;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    font-family: var(--font-ui);
+    font-size: 0.875rem;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 4rem 1rem;
+    color: var(--color-text-muted);
+  }
+
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 2rem;
+    font-family: var(--font-ui);
+  }
+
+  .pagination-info {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+  }
+</style>

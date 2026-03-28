@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm init:*)",
+      "Bash(npm install:*)",
+      "Bash(npm create:*)",
+      "Bash(npx astro:*)",
+      "Bash(node -c src/index.js)",
+      "Bash(node -c src/routes/auth.js)",
+      "Bash(node -c src/routes/posts.js)",
+      "Bash(node -c src/routes/comments.js)",
+      "Bash(node -c src/routes/admin.js)",
+      "Bash(node:*)"
+    ]
+  }
+}

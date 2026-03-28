@@ -1,0 +1,133 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PostEditor from '../components/Editor';
+import { serverFetch } from '../lib/api';
+
+const cookie = Astro.request.headers.get('cookie') || '';
+
+// Auth check
+let user = null;
+try {
+  const authRes = await serverFetch('/auth/me', cookie);
+  if (authRes.ok) {
+    user = await authRes.json();
+  }
+} catch {}
+
+if (!user || !user.approved) {
+  return Astro.redirect('/login');
+}
+
+// If editing an existing post
+const editSlug = Astro.url.searchParams.get('edit');
+let postData = undefined;
+
+if (editSlug) {
+  try {
+    const postRes = await serverFetch(`/posts/${editSlug}`, cookie);
+    if (postRes.ok) {
+      postData = await postRes.json();
+    }
+  } catch {}
+}
+---
+
+<BaseLayout title={editSlug ? 'Edit Post' : 'Write'}>
+  <h1>{editSlug ? 'Edit Post' : 'New Post'}</h1>
+  <PostEditor client:load initialData={postData} />
+</BaseLayout>
+
+<style is:global>
+  .editor-container {
+    margin-top: 1rem;
+  }
+
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    padding: 0.5rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+  }
+
+  .toolbar-btn {
+    padding: 0.35rem 0.6rem;
+    font-size: 0.8rem;
+    border: none;
+    background: transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: var(--font-ui);
+  }
+
+  .toolbar-btn:hover {
+    background: #f5f5f4;
+  }
+
+  .toolbar-btn.active {
+    background: #e7e5e4;
+    color: var(--color-accent);
+  }
+
+  .toolbar-divider {
+    width: 1px;
+    background: var(--color-border);
+    margin: 0 0.25rem;
+    align-self: stretch;
+  }
+
+  .editor-content {
+    border: 1px solid var(--color-border);
+    border-radius: 0 0 8px 8px;
+    min-height: 400px;
+  }
+
+  .editor-content .tiptap {
+    padding: 1rem;
+    min-height: 400px;
+    outline: none;
+    font-family: var(--font-body);
+    font-size: 1rem;
+    line-height: 1.75;
+  }
+
+  .editor-content .tiptap p {
+    margin-bottom: 0.75rem;
+  }
+
+  .editor-content .tiptap pre {
+    background: #1e1e1e;
+    color: #d4d4d4;
+    padding: 1rem;
+    border-radius: 6px;
+    font-family: var(--font-code);
+    font-size: 0.875rem;
+    overflow-x: auto;
+    margin: 0.75rem 0;
+  }
+
+  .editor-content .tiptap code {
+    font-family: var(--font-code);
+  }
+
+  .editor-content .tiptap blockquote {
+    border-left: 3px solid var(--color-accent);
+    padding-left: 1rem;
+    color: var(--color-text-muted);
+    margin: 0.75rem 0;
+  }
+
+  .editor-fields {
+    margin-top: 1.5rem;
+  }
+
+  .editor-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    justify-content: flex-end;
+  }
+</style>
