@@ -10,7 +10,10 @@
       "Bash(node -c src/routes/posts.js)",
       "Bash(node -c src/routes/comments.js)",
       "Bash(node -c src/routes/admin.js)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(grep -r localhost /home/erdemydt/Desktop/myBlogSite/frontend/src --include=*.tsx --include=*.ts)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

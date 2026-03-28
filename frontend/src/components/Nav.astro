@@ -14,30 +14,33 @@ const { user } = Astro.props;
 
 <nav>
   <div class="nav-inner">
-    <a href="/" class="nav-logo">Blog</a>
-    <div class="nav-links">
-      {user && user.approved && (
-        <a href="/write">Write</a>
-      )}
-      {user && (
-        <a href="/drafts">Drafts</a>
-      )}
-      {user && user.role === 'admin' && (
-        <a href="/admin">Admin</a>
-      )}
-      {user ? (
-        <>
-          <span class="nav-user">{user.username}</span>
-          <button id="logout-btn" class="btn">Logout</button>
-        </>
-      ) : (
-        <>
-          <a href="/login">Login</a>
-          <a href="/register">Register</a>
-        </>
-      )}
+    <div class="nav-branding">
+      <a href="/" class="nav-logo">Bistromathica</a>
+      <div class="nav-tagline">#neverforgetepsteinfiles</div>
     </div>
-  </div>
+      <div class="nav-links">
+        {user && user.approved && (
+          <a href="/write">Write</a>
+        )}
+        {user && (
+          <a href="/drafts">Drafts</a>
+        )}
+        {user && user.role === 'admin' && (
+          <a href="/admin">Admin</a>
+        )}
+        {user ? (
+          <>
+            <span class="nav-user">{user.username}</span>
+            <button id="logout-btn" class="btn">Logout</button>
+          </>
+        ) : (
+          <>
+            <a href="/login">Login</a>
+            <a href="/register">Register</a>
+          </>
+        )}
+      </div>
+    </div>
 </nav>
 
 <script>
@@ -72,6 +75,12 @@ const { user } = Astro.props;
     gap: 1rem;
   }
 
+  .nav-branding {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+  }
+
   .nav-logo {
     font-family: var(--font-body);
     font-size: 1.25rem;
@@ -83,6 +92,14 @@ const { user } = Astro.props;
   .nav-logo:hover {
     color: var(--color-accent);
     text-decoration: none;
+  }
+
+  .nav-tagline {
+    font-family: var(--font-ui);
+    font-size: 0.65rem;
+    font-weight: 500;
+    color: var(--color-text-muted);
+    letter-spacing: 0.5px;
   }
 
   .nav-links {
