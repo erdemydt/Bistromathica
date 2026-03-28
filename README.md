@@ -33,7 +33,7 @@ npm install
 npm run dev
 ```
 
-Visit `http://localhost:3000` (frontend) and `http://localhost:3001/api` (backend).
+Visit `http://localhost:3000` (frontend).
 
 ## Project Structure
 
