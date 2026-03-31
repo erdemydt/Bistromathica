@@ -1,0 +1,143 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PostCard from '../components/PostCard.astro';
+import { serverFetch } from '../lib/api';
+
+const q = Astro.url.searchParams.get('q') || '';
+const page = parseInt(Astro.url.searchParams.get('page') || '1');
+
+let posts: any[] = [];
+let pagination = { page: 1, limit: 10, total: 0, totalPages: 1 };
+let fetchError = false;
+
+if (q.trim()) {
+  const queryString = `?page=${page}&limit=10&q=${encodeURIComponent(q)}`;
+  try {
+    const res = await serverFetch(`/posts${queryString}`);
+    if (res.ok) {
+      const data = await res.json();
+      posts = data.posts;
+      pagination = data.pagination;
+    } else {
+      fetchError = true;
+    }
+  } catch {
+    fetchError = true;
+  }
+}
+---
+
+<BaseLayout title={q ? `Search: ${q}` : 'Search'}>
+  <h1>Search</h1>
+
+  <form method="GET" action="/search" class="search-form">
+    <div class="search-input-row">
+      <input
+        type="search"
+        name="q"
+        value={q}
+        placeholder="Search posts…"
+        aria-label="Search posts"
+        autofocus
+      />
+      <button type="submit" class="btn btn-primary">Search</button>
+    </div>
+  </form>
+
+  {q.trim() && (
+    <div class="search-meta">
+      {fetchError ? (
+        <p class="error-text">Something went wrong. Please try again.</p>
+      ) : (
+        <p class="meta">
+          {pagination.total} result{pagination.total !== 1 ? 's' : ''} for <strong>"{q}"</strong>
+        </p>
+      )}
+    </div>
+  )}
+
+  {q.trim() && !fetchError && posts.length === 0 && (
+    <div class="empty-state">
+      <p>No posts found for "{q}".</p>
+    </div>
+  )}
+
+  {posts.length > 0 && (
+    <div class="post-list">
+      {posts.map((post) => (
+        <PostCard
+          title={post.title}
+          slug={post.slug}
+          excerpt={post.excerpt}
+          cover_image={post.cover_image}
+          author={post.author}
+          published_at={post.published_at}
+          tags={post.tags}
+          comment_count={post.comment_count}
+        />
+      ))}
+    </div>
+  )}
+
+  {pagination.totalPages > 1 && (
+    <nav class="pagination">
+      {pagination.page > 1 && (
+        <a href={`/search?q=${encodeURIComponent(q)}&page=${pagination.page - 1}`} class="btn">
+          Previous
+        </a>
+      )}
+      <span class="pagination-info">
+        Page {pagination.page} of {pagination.totalPages}
+      </span>
+      {pagination.page < pagination.totalPages && (
+        <a href={`/search?q=${encodeURIComponent(q)}&page=${pagination.page + 1}`} class="btn">
+          Next
+        </a>
+      )}
+    </nav>
+  )}
+</BaseLayout>
+
+<style>
+  .search-form {
+    margin-bottom: 1.5rem;
+  }
+
+  .search-input-row {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .search-input-row input {
+    flex: 1;
+  }
+
+  .search-input-row .btn {
+    flex-shrink: 0;
+    width: auto;
+  }
+
+  .search-meta {
+    margin-bottom: 1.25rem;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 4rem 1rem;
+    color: var(--color-text-muted);
+  }
+
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 2rem;
+    font-family: var(--font-ui);
+  }
+
+  .pagination-info {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+  }
+</style>

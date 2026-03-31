@@ -19,6 +19,7 @@ const { user } = Astro.props;
       <div class="nav-tagline">#neverforgetepsteinfiles</div>
     </div>
       <div class="nav-links">
+        <a href="/search">Search</a>
         {user && user.approved && (
           <a href="/write">Write</a>
         )}

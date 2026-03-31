@@ -99,12 +99,13 @@ async function syncTags(postId, tags) {
 router.get('/',
   query('page').optional().isInt({ min: 1 }),
   query('limit').optional().isInt({ min: 1, max: 50 }),
+  query('q').optional().isString().trim().isLength({ max: 200 }),
   async (req, res, next) => {
     try {
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 10;
       const offset = (page - 1) * limit;
-      const { tag, author } = req.query;
+      const { tag, author, q } = req.query;
 
       let whereClause = "WHERE p.status = 'published'";
       const params = [];
@@ -119,6 +120,22 @@ router.get('/',
       if (author) {
         whereClause += ` AND u.username = $${paramIndex}`;
         params.push(author);
+        paramIndex++;
+      }
+
+      if (q && q.trim()) {
+        const term = `%${q.trim()}%`;
+        whereClause += ` AND (
+          p.title ILIKE $${paramIndex}
+          OR EXISTS (
+            SELECT 1 FROM post_tags pt2
+            JOIN tags t2 ON pt2.tag_id = t2.id
+            WHERE pt2.post_id = p.id
+            AND t2.name ILIKE $${paramIndex}
+          )
+          OR regexp_replace(p.body, '<[^>]+>', '', 'g') ILIKE $${paramIndex}
+        )`;
+        params.push(term);
         paramIndex++;
       }
 
