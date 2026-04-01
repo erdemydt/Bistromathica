@@ -80,7 +80,62 @@ for (const match of matches) {
     {post.status === 'draft' && (
       <div class="draft-banner">This post is a draft and is only visible to you.</div>
     )}
+
+    {post.citations && post.citations.length > 0 && (
+      <aside class="references" aria-label="References">
+        <h2>References</h2>
+        <ol class="references-list">
+          {post.citations.map((c: any) => (
+            <li id={`ref-${c.id}`}>
+              {c.url
+                ? <a href={c.url} target="_blank" rel="noopener noreferrer">{c.title || c.url}</a>
+                : c.title}
+            </li>
+          ))}
+        </ol>
+      </aside>
+    )}
   </article>
+
+  <script type="application/json" id="post-citations" set:text={JSON.stringify(post.citations || [])} />
+
+  <script>
+    const citationsData = JSON.parse(
+      document.getElementById('post-citations')?.textContent || '[]'
+    );
+    const citationsMap: Record<string, { id: number; title: string; url: string }> =
+      Object.fromEntries(citationsData.map((c: any) => [String(c.id), c]));
+
+    document.querySelectorAll<HTMLElement>('.post-body sup[data-citation]').forEach((sup) => {
+      const id = sup.getAttribute('data-citation');
+      if (!id) return;
+      const citation = citationsMap[id];
+      if (!citation) return;
+
+      const popover = document.createElement('span');
+      popover.className = 'citation-popover';
+      popover.setAttribute('role', 'tooltip');
+      if (citation.url) {
+        const link = document.createElement('a');
+        link.href = citation.url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = citation.title || citation.url;
+        popover.appendChild(link);
+      } else {
+        popover.textContent = citation.title;
+      }
+
+      sup.style.position = 'relative';
+      sup.setAttribute('tabindex', '0');
+      sup.appendChild(popover);
+
+      sup.addEventListener('mouseenter', () => popover.classList.add('visible'));
+      sup.addEventListener('mouseleave', () => popover.classList.remove('visible'));
+      sup.addEventListener('focus', () => popover.classList.add('visible'));
+      sup.addEventListener('blur', () => popover.classList.remove('visible'));
+    });
+  </script>
 
   <hr />
 
@@ -168,6 +223,63 @@ for (const match of matches) {
     font-family: var(--font-ui);
     font-size: 0.875rem;
     margin-top: 1rem;
+  }
+
+  .post-body :global(sup.citation-mark) {
+    font-family: var(--font-ui);
+    font-size: 0.7em;
+    color: var(--color-accent);
+    cursor: pointer;
+  }
+
+  :global(.citation-popover) {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--color-text);
+    color: var(--color-bg);
+    font-family: var(--font-ui);
+    font-size: 0.8rem;
+    font-weight: 400;
+    padding: 0.4rem 0.65rem;
+    border-radius: 6px;
+    width: max-content;
+    max-width: 280px;
+    white-space: normal;
+    z-index: 50;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  }
+
+  :global(.citation-popover.visible) {
+    display: block;
+  }
+
+  :global(.citation-popover a) {
+    color: #fde68a;
+    text-decoration: underline;
+  }
+
+  .references {
+    margin-top: 2.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .references h2 {
+    font-size: 1.25rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .references-list {
+    font-family: var(--font-ui);
+    font-size: 0.875rem;
+    padding-left: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    color: var(--color-text-muted);
   }
 
   .comments-section {

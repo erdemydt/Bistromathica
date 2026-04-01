@@ -6,10 +6,17 @@ import Underline from "@tiptap/extension-underline";
 import Link from "@tiptap/extension-link";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { common, createLowlight } from "lowlight";
+import { CitationMark } from "../tiptap/CitationMark";
 
 const lowlight = createLowlight(common);
 
 const API_URL = "/api";
+
+interface Citation {
+  id: number;
+  title: string;
+  url: string;
+}
 
 interface EditorProps {
   initialData?: {
@@ -20,6 +27,7 @@ interface EditorProps {
     status: string;
     tags: { name: string }[];
     slug: string;
+    citations?: Citation[];
   };
 }
 
@@ -54,6 +62,9 @@ export default function PostEditor({ initialData }: EditorProps) {
     initialData?.tags?.map((t) => t.name).join(", ") || "",
   );
   const [status, setStatus] = useState(initialData?.status || "draft");
+  const [citations, setCitations] = useState<Citation[]>(
+    initialData?.citations || [],
+  );
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -72,10 +83,26 @@ export default function PostEditor({ initialData }: EditorProps) {
       Placeholder.configure({
         placeholder: "Start writing...",
       }),
+      CitationMark,
     ],
     content: initialData?.body || "",
     immediatelyRender: false,
   });
+
+  function insertCitation() {
+    if (!editor) return;
+    const nextId = citations.length + 1;
+    editor
+      .chain()
+      .focus()
+      .insertContent({
+        type: "text",
+        text: `[${nextId}]`,
+        marks: [{ type: "citation", attrs: { id: nextId } }],
+      })
+      .run();
+    setCitations((prev) => [...prev, { id: nextId, title: "", url: "" }]);
+  }
 
   const setLink = useCallback(() => {
     if (!editor) return;
@@ -112,6 +139,7 @@ export default function PostEditor({ initialData }: EditorProps) {
       cover_image: coverImage || undefined,
       status: submitStatus,
       tags,
+      citations,
     };
 
     try {
@@ -262,9 +290,46 @@ export default function PostEditor({ initialData }: EditorProps) {
         >
           Link
         </ToolbarButton>
+
+        <span className="toolbar-divider" />
+
+        <ToolbarButton onClick={insertCitation} title="Insert citation">
+          Cite
+        </ToolbarButton>
       </div>
 
       <EditorContent editor={editor} className="editor-content" />
+
+      {citations.length > 0 && (
+        <div className="citation-tray">
+          <p className="citation-tray-title">Citations</p>
+          {citations.map((c, i) => (
+            <div key={c.id} className="citation-row">
+              <span className="citation-index">[{c.id}]</span>
+              <input
+                type="text"
+                placeholder="Title"
+                value={c.title}
+                onChange={(e) => {
+                  const updated = [...citations];
+                  updated[i] = { ...c, title: e.target.value };
+                  setCitations(updated);
+                }}
+              />
+              <input
+                type="url"
+                placeholder="URL (https://...)"
+                value={c.url}
+                onChange={(e) => {
+                  const updated = [...citations];
+                  updated[i] = { ...c, url: e.target.value };
+                  setCitations(updated);
+                }}
+              />
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="editor-fields">
         <div className="form-group">

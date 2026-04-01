@@ -21,7 +21,8 @@ CREATE TABLE posts (
   author_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  published_at TIMESTAMPTZ
+  published_at TIMESTAMPTZ,
+  citations JSONB NOT NULL DEFAULT '[]'
 );
 
 CREATE TABLE tags (

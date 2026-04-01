@@ -15,6 +15,7 @@ const ALLOWED_TAGS = [
   'blockquote', 'pre', 'code',
   'a', 'img', 'hr',
   'span', 'div',
+  'sup',
 ];
 
 const SANITIZE_OPTIONS = {
@@ -25,8 +26,18 @@ const SANITIZE_OPTIONS = {
     code: ['class'],
     pre: ['class'],
     span: ['class', 'style'],
+    sup: ['data-citation', 'class'],
   },
 };
+
+function sanitizeCitations(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw.slice(0, 100).map((c, i) => ({
+    id: parseInt(c.id) || i + 1,
+    title: String(c.title || '').trim().substring(0, 200),
+    url: String(c.url || '').trim().substring(0, 2000),
+  }));
+}
 
 function stripHtml(html) {
   return html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
@@ -264,6 +275,7 @@ router.get('/:slug', async (req, res, next) => {
       published_at: post.published_at,
       tags: tagsResult.rows,
       comments: commentsResult.rows,
+      citations: post.citations || [],
     });
   } catch (err) {
     next(err);
@@ -279,6 +291,7 @@ router.post('/',
   body('excerpt').optional().isLength({ max: 300 }),
   body('status').optional().isIn(['draft', 'published']),
   body('tags').optional().isArray(),
+  body('citations').optional().isArray(),
   async (req, res, next) => {
     try {
       const errors = validationResult(req);
@@ -286,7 +299,8 @@ router.post('/',
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { title, body: rawBody, excerpt, cover_image, status = 'draft', tags } = req.body;
+      const { title, body: rawBody, excerpt, cover_image, status = 'draft', tags, citations } = req.body;
+      const sanitizedCitations = sanitizeCitations(citations);
 
       const sanitizedBody = sanitizeHtml(rawBody, SANITIZE_OPTIONS);
       const slug = await generateUniqueSlug(title);
@@ -294,10 +308,10 @@ router.post('/',
       const publishedAt = status === 'published' ? new Date() : null;
 
       const result = await pool.query(
-        `INSERT INTO posts (title, slug, body, excerpt, cover_image, status, author_id, published_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `INSERT INTO posts (title, slug, body, excerpt, cover_image, status, author_id, published_at, citations)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          RETURNING *`,
-        [title, slug, sanitizedBody, autoExcerpt, cover_image || null, status, req.user.userId, publishedAt]
+        [title, slug, sanitizedBody, autoExcerpt, cover_image || null, status, req.user.userId, publishedAt, JSON.stringify(sanitizedCitations)]
       );
 
       const post = result.rows[0];
@@ -325,6 +339,7 @@ router.put('/:slug',
   body('excerpt').optional().isLength({ max: 300 }),
   body('status').optional().isIn(['draft', 'published']),
   body('tags').optional().isArray(),
+  body('citations').optional().isArray(),
   async (req, res, next) => {
     try {
       const errors = validationResult(req);
@@ -348,7 +363,10 @@ router.put('/:slug',
         return res.status(403).json({ error: 'Not authorized to edit this post' });
       }
 
-      const { title, body: rawBody, excerpt, cover_image, status, tags } = req.body;
+      const { title, body: rawBody, excerpt, cover_image, status, tags, citations } = req.body;
+      const newCitations = citations !== undefined
+        ? sanitizeCitations(citations)
+        : (post.citations || []);
 
       const newTitle = title || post.title;
       const newBody = rawBody ? sanitizeHtml(rawBody, SANITIZE_OPTIONS) : post.body;
@@ -370,9 +388,9 @@ router.put('/:slug',
 
       const result = await pool.query(
         `UPDATE posts SET title = $1, slug = $2, body = $3, excerpt = $4, cover_image = $5,
-         status = $6, published_at = $7, updated_at = NOW()
-         WHERE id = $8 RETURNING *`,
-        [newTitle, newSlug, newBody, newExcerpt, newCoverImage, newStatus, publishedAt, post.id]
+         status = $6, published_at = $7, citations = $8, updated_at = NOW()
+         WHERE id = $9 RETURNING *`,
+        [newTitle, newSlug, newBody, newExcerpt, newCoverImage, newStatus, publishedAt, JSON.stringify(newCitations), post.id]
       );
 
       const updatedPost = result.rows[0];
