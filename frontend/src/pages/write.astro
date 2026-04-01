@@ -29,6 +29,10 @@ if (editSlug) {
       postData = await postRes.json();
     }
   } catch {}
+
+  if (!postData) {
+    return Astro.redirect('/drafts');
+  }
 }
 ---
 
@@ -40,6 +44,15 @@ if (editSlug) {
 <style is:global>
   .editor-container {
     margin-top: 1rem;
+  }
+
+  .edit-mode-banner {
+    margin-bottom: 0.75rem;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: #fef3c7;
+    color: #92400e;
   }
 
   .toolbar {
@@ -168,5 +181,38 @@ if (editSlug) {
     color: var(--color-accent);
     font-size: 0.7em;
     cursor: default;
+  }
+
+  .leave-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(28, 25, 23, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    padding: 1rem;
+  }
+
+  .leave-modal {
+    width: 100%;
+    max-width: 420px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    padding: 1rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  }
+
+  .leave-modal h2 {
+    font-size: 1.15rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .leave-modal-actions {
+    margin-top: 1rem;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.6rem;
   }
 </style>

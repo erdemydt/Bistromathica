@@ -1,0 +1,240 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PostCard from '../components/PostCard.astro';
+import { serverFetch } from '../lib/api';
+import { formatDate } from '../lib/utils';
+
+const { username } = Astro.params;
+if (!username) {
+  return new Response(null, { status: 404 });
+}
+
+const rawPage = parseInt(Astro.url.searchParams.get('page') || '1');
+const page = Number.isNaN(rawPage) || rawPage < 1 ? 1 : rawPage;
+
+const profileRes = await serverFetch(`/users/${encodeURIComponent(username)}`);
+if (profileRes.status === 404) {
+  return new Response(null, { status: 404 });
+}
+if (!profileRes.ok) {
+  throw new Error('Failed to load profile');
+}
+
+const profile = await profileRes.json();
+
+let posts: any[] = [];
+let pagination = { page: 1, limit: 10, total: 0, totalPages: 1 };
+let postsError = false;
+
+try {
+  const postsRes = await serverFetch(
+    `/posts?author=${encodeURIComponent(profile.username)}&page=${page}&limit=10`
+  );
+
+  if (postsRes.ok) {
+    const data = await postsRes.json();
+    posts = data.posts;
+    pagination = data.pagination;
+  } else {
+    postsError = true;
+  }
+} catch {
+  postsError = true;
+}
+
+function profilePageHref(nextPage: number) {
+  const params = new URLSearchParams({ page: String(nextPage) });
+  return `/@${profile.username}?${params.toString()}`;
+}
+---
+
+<BaseLayout title={`@${profile.username}`}>
+  <section class="profile-hero">
+    <div class="profile-badge">Author Profile</div>
+    <h1>@{profile.username}</h1>
+    <p class="profile-subtitle">Member since {formatDate(profile.created_at)}</p>
+
+    <div class="profile-stats">
+      <div class="stat-card">
+        <span class="stat-label">Published posts</span>
+        <span class="stat-value">{profile.post_count}</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Role</span>
+        <span class="stat-value">
+          {profile.role === 'admin' ? 'Admin' : 'Writer'}
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <section class="posts-section">
+    <div class="posts-heading">
+      <h2>Posts by @{profile.username}</h2>
+      <span class="meta">{pagination.total} total</span>
+    </div>
+
+    {postsError && (
+      <p class="error-text">Could not load posts for this profile right now.</p>
+    )}
+
+    {!postsError && posts.length === 0 && (
+      <div class="empty-state">
+        <p>This author has not published any posts yet.</p>
+      </div>
+    )}
+
+    {!postsError && posts.length > 0 && (
+      <div class="post-list">
+        {posts.map((post) => (
+          <PostCard
+            title={post.title}
+            slug={post.slug}
+            excerpt={post.excerpt}
+            cover_image={post.cover_image}
+            author={post.author}
+            published_at={post.published_at}
+            tags={post.tags}
+            comment_count={post.comment_count}
+          />
+        ))}
+      </div>
+    )}
+
+    {!postsError && pagination.totalPages > 1 && (
+      <nav class="pagination">
+        {pagination.page > 1 && (
+          <a href={profilePageHref(pagination.page - 1)} class="btn">Previous</a>
+        )}
+
+        <span class="pagination-info">
+          Page {pagination.page} of {pagination.totalPages}
+        </span>
+
+        {pagination.page < pagination.totalPages && (
+          <a href={profilePageHref(pagination.page + 1)} class="btn">Next</a>
+        )}
+      </nav>
+    )}
+  </section>
+</BaseLayout>
+
+<style>
+  .profile-hero {
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    background:
+      radial-gradient(circle at top right, #fde68a 0%, transparent 45%),
+      linear-gradient(160deg, #fffef8 0%, #ffffff 55%, #fffbeb 100%);
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .profile-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #a16207;
+    background: #fef3c7;
+    border: 1px solid #fde68a;
+    border-radius: 999px;
+    padding: 0.25rem 0.6rem;
+    margin-bottom: 0.8rem;
+  }
+
+  .profile-hero h1 {
+    margin-bottom: 0.35rem;
+  }
+
+  .profile-subtitle {
+    color: var(--color-text-muted);
+    font-family: var(--font-ui);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+  }
+
+  .profile-stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  .stat-card {
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    border-radius: 10px;
+    padding: 0.7rem 0.8rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .stat-label {
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+
+  .stat-value {
+    font-family: var(--font-ui);
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-text);
+  }
+
+  .posts-section {
+    margin-top: 1rem;
+  }
+
+  .posts-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .posts-heading h2 {
+    margin-bottom: 0;
+  }
+
+  .empty-state {
+    border: 1px dashed var(--color-border);
+    border-radius: 10px;
+    padding: 2.5rem 1rem;
+    text-align: center;
+    color: var(--color-text-muted);
+  }
+
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 2rem;
+    font-family: var(--font-ui);
+  }
+
+  .pagination-info {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+  }
+
+  @media (max-width: 640px) {
+    .profile-stats {
+      grid-template-columns: 1fr;
+    }
+
+    .posts-heading {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+</style>

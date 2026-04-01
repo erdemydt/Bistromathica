@@ -2,6 +2,7 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import CommentSection from '../../components/CommentSection';
 import { serverFetch } from '../../lib/api';
+import { canEditPost } from '../../lib/permissions';
 import { formatDate, calculateReadingTime } from '../../lib/utils';
 import { codeToHtml } from 'shiki';
 
@@ -24,6 +25,8 @@ try {
     user = await authRes.json();
   }
 } catch {}
+
+const canEdit = canEditPost(user, post.author_id);
 
 // Process code blocks with Shiki for syntax highlighting
 let processedBody = post.body;
@@ -60,7 +63,7 @@ for (const match of matches) {
     <header class="post-header">
       <h1>{post.title}</h1>
       <div class="post-meta meta">
-        <span>By {post.author}</span>
+        <span>By <a href={`/@${post.author}`} class="post-author-link">{post.author}</a></span>
         <span>&middot;</span>
         <span>{formatDate(post.published_at || post.created_at)}</span>
         <span>&middot;</span>
@@ -71,6 +74,11 @@ for (const match of matches) {
           {post.tags.map((tag: any) => (
             <a href={`/?tag=${tag.slug}`} class="tag">{tag.name}</a>
           ))}
+        </div>
+      )}
+      {canEdit && (
+        <div class="post-actions">
+          <a href={`/write?edit=${post.slug}`} class="btn">Edit post</a>
         </div>
       )}
     </header>
@@ -176,10 +184,19 @@ for (const match of matches) {
     margin-bottom: 0.75rem;
   }
 
+  .post-author-link {
+    color: inherit;
+    font-weight: 600;
+  }
+
   .post-tags {
     display: flex;
     flex-wrap: wrap;
     gap: 0.4rem;
+  }
+
+  .post-actions {
+    margin-top: 0.9rem;
   }
 
   .post-body {

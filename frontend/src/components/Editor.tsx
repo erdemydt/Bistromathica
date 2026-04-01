@@ -1,9 +1,8 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import Placeholder from "@tiptap/extension-placeholder";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
-import Link from "@tiptap/extension-link";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { common, createLowlight } from "lowlight";
 import { CitationMark } from "../tiptap/CitationMark";
@@ -55,18 +54,36 @@ function ToolbarButton({
 }
 
 export default function PostEditor({ initialData }: EditorProps) {
+  const isEditMode = Boolean(initialData?.slug);
   const [title, setTitle] = useState(initialData?.title || "");
   const [excerpt, setExcerpt] = useState(initialData?.excerpt || "");
   const [coverImage, setCoverImage] = useState(initialData?.cover_image || "");
   const [tagsInput, setTagsInput] = useState(
     initialData?.tags?.map((t) => t.name).join(", ") || "",
   );
-  const [status, setStatus] = useState(initialData?.status || "draft");
   const [citations, setCitations] = useState<Citation[]>(
     initialData?.citations || [],
   );
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [bodyVersion, setBodyVersion] = useState(0);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
+
+  const initialSnapshot = useMemo(
+    () =>
+      JSON.stringify({
+        title: initialData?.title || "",
+        body: initialData?.body || "",
+        excerpt: initialData?.excerpt || "",
+        cover_image: initialData?.cover_image || "",
+        tags: initialData?.tags?.map((t) => t.name).join(", ") || "",
+        citations: initialData?.citations || [],
+      }),
+    [initialData],
+  );
+  const initialSnapshotRef = useRef(initialSnapshot);
+  const allowNextNavigationRef = useRef(false);
 
   const editor = useEditor({
     extensions: [
@@ -74,9 +91,6 @@ export default function PostEditor({ initialData }: EditorProps) {
         codeBlock: false,
       }),
       Underline,
-      Link.configure({
-        openOnClick: false,
-      }),
       CodeBlockLowlight.configure({
         lowlight,
       }),
@@ -88,6 +102,81 @@ export default function PostEditor({ initialData }: EditorProps) {
     content: initialData?.body || "",
     immediatelyRender: false,
   });
+
+  useEffect(() => {
+    if (!editor) return;
+
+    const onUpdate = () => {
+      setBodyVersion((prev) => prev + 1);
+    };
+
+    editor.on("update", onUpdate);
+    return () => {
+      editor.off("update", onUpdate);
+    };
+  }, [editor]);
+
+  useEffect(() => {
+    const currentSnapshot = JSON.stringify({
+      title,
+      body: editor?.getHTML() || initialData?.body || "",
+      excerpt,
+      cover_image: coverImage,
+      tags: tagsInput,
+      citations,
+    });
+    setHasUnsavedChanges(currentSnapshot !== initialSnapshotRef.current);
+  }, [title, excerpt, coverImage, tagsInput, citations, editor, initialData, bodyVersion]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges || saving) return;
+
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [hasUnsavedChanges, saving]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges || saving) return;
+
+    const onDocumentClick = (event: MouseEvent) => {
+      if (allowNextNavigationRef.current) {
+        allowNextNavigationRef.current = false;
+        return;
+      }
+
+      if (event.defaultPrevented) return;
+      if (event.button !== 0) return;
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+
+      const target = event.target as HTMLElement | null;
+      const anchor = target?.closest('a[href]') as HTMLAnchorElement | null;
+      if (!anchor) return;
+      if (anchor.target === '_blank' || anchor.hasAttribute('download')) return;
+
+      const destination = new URL(anchor.href, window.location.href);
+      const current = new URL(window.location.href);
+      const isInternal = destination.origin === current.origin;
+      const isSamePage = destination.pathname === current.pathname && destination.search === current.search && destination.hash === current.hash;
+      if (!isInternal || isSamePage) return;
+
+      event.preventDefault();
+      setPendingNavigation(destination.pathname + destination.search + destination.hash);
+    };
+
+    document.addEventListener('click', onDocumentClick, true);
+    return () => document.removeEventListener('click', onDocumentClick, true);
+  }, [hasUnsavedChanges, saving]);
+
+  function leavePage() {
+    if (!pendingNavigation) return;
+    allowNextNavigationRef.current = true;
+    window.location.assign(pendingNavigation);
+  }
 
   function insertCitation() {
     if (!editor) return;
@@ -103,18 +192,6 @@ export default function PostEditor({ initialData }: EditorProps) {
       .run();
     setCitations((prev) => [...prev, { id: nextId, title: "", url: "" }]);
   }
-
-  const setLink = useCallback(() => {
-    if (!editor) return;
-    const previousUrl = editor.getAttributes("link").href;
-    const url = window.prompt("URL", previousUrl);
-    if (url === null) return;
-    if (url === "") {
-      editor.chain().focus().extendMarkRange("link").unsetLink().run();
-      return;
-    }
-    editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
-  }, [editor]);
 
   async function handleSubmit(submitStatus: string) {
     if (!editor) return;
@@ -162,6 +239,16 @@ export default function PostEditor({ initialData }: EditorProps) {
         return;
       }
 
+      initialSnapshotRef.current = JSON.stringify({
+        title,
+        body,
+        excerpt,
+        cover_image: coverImage,
+        tags: tagsInput,
+        citations,
+      });
+      setHasUnsavedChanges(false);
+
       window.location.href =
         data.status === "published" ? `/posts/${data.slug}` : "/drafts";
     } catch {
@@ -175,6 +262,13 @@ export default function PostEditor({ initialData }: EditorProps) {
 
   return (
     <div className="editor-container">
+      {isEditMode && (
+        <div className="edit-mode-banner meta">
+          Editing post: <strong>{initialData?.title || initialData?.slug}</strong>
+          {hasUnsavedChanges ? " (unsaved changes)" : ""}
+        </div>
+      )}
+
       <div className="form-group">
         <label htmlFor="title">Title</label>
         <input
@@ -283,13 +377,6 @@ export default function PostEditor({ initialData }: EditorProps) {
         >
           &mdash;
         </ToolbarButton>
-        <ToolbarButton
-          onClick={setLink}
-          active={editor.isActive("link")}
-          title="Link"
-        >
-          Link
-        </ToolbarButton>
 
         <span className="toolbar-divider" />
 
@@ -378,7 +465,7 @@ export default function PostEditor({ initialData }: EditorProps) {
           onClick={() => handleSubmit("draft")}
           disabled={saving}
         >
-          {saving ? "Saving..." : "Save as Draft"}
+          {saving ? "Saving..." : isEditMode ? "Update Draft" : "Save as Draft"}
         </button>
         <button
           type="button"
@@ -386,9 +473,26 @@ export default function PostEditor({ initialData }: EditorProps) {
           onClick={() => handleSubmit("published")}
           disabled={saving}
         >
-          {saving ? "Publishing..." : "Publish"}
+          {saving ? "Publishing..." : isEditMode ? "Update & Publish" : "Publish"}
         </button>
       </div>
+
+      {pendingNavigation && (
+        <div className="leave-modal-backdrop" role="presentation">
+          <div className="leave-modal" role="dialog" aria-modal="true" aria-labelledby="leave-modal-title">
+            <h2 id="leave-modal-title">You have unsaved changes.</h2>
+            <p className="meta">Leaving now will discard your in-progress edits.</p>
+            <div className="leave-modal-actions">
+              <button type="button" className="btn" onClick={() => setPendingNavigation(null)}>
+                Stay here
+              </button>
+              <button type="button" className="btn btn-danger" onClick={leavePage}>
+                Leave page
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

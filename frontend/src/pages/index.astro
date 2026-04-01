@@ -5,9 +5,27 @@ import { serverFetch } from '../lib/api';
 
 const page = parseInt(Astro.url.searchParams.get('page') || '1');
 const tag = Astro.url.searchParams.get('tag') || '';
+const q = (Astro.url.searchParams.get('q') || '').trim();
 
-let queryString = `?page=${page}&limit=10`;
-if (tag) queryString += `&tag=${tag}`;
+const queryParams = new URLSearchParams({
+  page: String(page),
+  limit: '10',
+});
+
+if (tag) queryParams.set('tag', tag);
+if (q) queryParams.set('q', q);
+
+const queryString = `?${queryParams.toString()}`;
+
+const clearSearchHref = tag ? `/?tag=${encodeURIComponent(tag)}` : '/';
+const clearTagHref = q ? `/?q=${encodeURIComponent(q)}` : '/';
+
+function pageHref(nextPage: number) {
+  const params = new URLSearchParams({ page: String(nextPage) });
+  if (tag) params.set('tag', tag);
+  if (q) params.set('q', q);
+  return `/?${params.toString()}`;
+}
 
 let posts: any[] = [];
 let pagination = { page: 1, limit: 10, total: 0, totalPages: 1 };
@@ -23,16 +41,39 @@ try {
 ---
 
 <BaseLayout title="Blog">
-  {tag && (
+  <form class="search-form" method="GET" action="/">
+    {tag && <input type="hidden" name="tag" value={tag} />}
+    <label for="post-search" class="sr-only">Search posts</label>
+    <input
+      id="post-search"
+      type="search"
+      name="q"
+      value={q}
+      placeholder="Search posts by title, excerpt, or content"
+      autocomplete="off"
+    />
+    <button type="submit" class="btn btn-primary">Search</button>
+    {(q || tag) && <a href="/" class="btn">Clear all</a>}
+  </form>
+
+  {(tag || q) && (
     <div class="filter-bar">
-      <span>Filtered by tag: <strong>{tag}</strong></span>
-      <a href="/">Clear filter</a>
+      <div class="filter-summary">
+        {tag && <span>Tag: <strong>{tag}</strong></span>}
+        {q && <span>Search: <strong>{q}</strong></span>}
+      </div>
+      <div class="filter-actions">
+        {q && <a href={clearSearchHref}>Clear search</a>}
+        {tag && <a href={clearTagHref}>Clear tag</a>}
+      </div>
     </div>
   )}
 
   {posts.length === 0 ? (
     <div class="empty-state">
-      <p>No posts yet.</p>
+      {q
+        ? <p>No posts found for "{q}".</p>
+        : <p>No posts yet.</p>}
     </div>
   ) : (
     <div class="post-list">
@@ -54,7 +95,7 @@ try {
   {pagination.totalPages > 1 && (
     <nav class="pagination">
       {pagination.page > 1 && (
-        <a href={`/?page=${pagination.page - 1}${tag ? `&tag=${tag}` : ''}`} class="btn">
+        <a href={pageHref(pagination.page - 1)} class="btn">
           Previous
         </a>
       )}
@@ -62,7 +103,7 @@ try {
         Page {pagination.page} of {pagination.totalPages}
       </span>
       {pagination.page < pagination.totalPages && (
-        <a href={`/?page=${pagination.page + 1}${tag ? `&tag=${tag}` : ''}`} class="btn">
+        <a href={pageHref(pagination.page + 1)} class="btn">
           Next
         </a>
       )}
@@ -71,16 +112,54 @@ try {
 </BaseLayout>
 
 <style>
+  .search-form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+    align-items: center;
+  }
+
+  .search-form input[type='search'] {
+    min-width: 0;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
   .filter-bar {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
     padding: 0.75rem 1rem;
     background: #fef3c7;
     border-radius: 8px;
     margin-bottom: 1.5rem;
     font-family: var(--font-ui);
     font-size: 0.875rem;
+  }
+
+  .filter-summary {
+    display: flex;
+    gap: 0.85rem;
+    flex-wrap: wrap;
+  }
+
+  .filter-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
   }
 
   .empty-state {
@@ -101,5 +180,11 @@ try {
   .pagination-info {
     font-size: 0.875rem;
     color: var(--color-text-muted);
+  }
+
+  @media (max-width: 640px) {
+    .search-form {
+      grid-template-columns: 1fr;
+    }
   }
 </style>

@@ -30,7 +30,7 @@ const { user } = Astro.props;
         )}
         {user ? (
           <>
-            <span class="nav-user">{user.username}</span>
+            <a href={`/@${user.username}`} class="nav-user">{user.username}</a>
             <button id="logout-btn" class="btn">Logout</button>
           </>
         ) : (

@@ -30,7 +30,7 @@ const readingTime = body ? calculateReadingTime(body) : Math.max(1, Math.ceil((e
     </h2>
     {excerpt && <p class="post-card-excerpt">{excerpt}</p>}
     <div class="post-card-meta">
-      <span>{author}</span>
+      <a href={`/@${author}`} class="author-link">{author}</a>
       <span>&middot;</span>
       <span>{formatDate(published_at)}</span>
       <span>&middot;</span>
@@ -110,6 +110,17 @@ const readingTime = body ? calculateReadingTime(body) : Math.max(1, Math.ceil((e
     flex-wrap: wrap;
     gap: 0.4rem;
     margin-bottom: 0.5rem;
+  }
+
+  .author-link {
+    color: var(--color-text-muted);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .author-link:hover {
+    color: var(--color-accent);
+    text-decoration: underline;
   }
 
   .post-card-tags {

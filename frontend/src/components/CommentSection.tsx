@@ -138,7 +138,11 @@ export default function CommentSection({
         {comments.map((comment) => (
           <div key={comment.id} className="comment">
             <div className="comment-header">
-              <strong>{comment.author}</strong>
+              <strong>
+                <a href={`/@${comment.author}`} className="comment-author-link">
+                  {comment.author}
+                </a>
+              </strong>
               <span className="comment-date">{formatDate(comment.created_at)}</span>
               {comment.updated_at !== comment.created_at && (
                 <span className="comment-edited">(edited)</span>

@@ -116,6 +116,11 @@ router.get('/',
       const limit = parseInt(req.query.limit) || 10;
       const offset = (page - 1) * limit;
       const { tag, author } = req.query;
+      const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+
+      if (q.length > 120) {
+        return res.status(400).json({ error: 'Search query too long' });
+      }
 
       let whereClause = "WHERE p.status = 'published'";
       const params = [];
@@ -131,6 +136,13 @@ router.get('/',
         whereClause += ` AND u.username = $${paramIndex}`;
         params.push(author);
         paramIndex++;
+      }
+
+      if (q) {
+        whereClause += ` AND (p.title ILIKE $${paramIndex} OR COALESCE(p.excerpt, '') ILIKE $${paramIndex + 1} OR p.body ILIKE $${paramIndex + 2})`;
+        const likeQuery = `%${q}%`;
+        params.push(likeQuery, likeQuery, likeQuery);
+        paramIndex += 3;
       }
 
       const countQuery = `

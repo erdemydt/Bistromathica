@@ -282,6 +282,16 @@ const { title = 'Blog' } = Astro.props;
         color: var(--color-text);
       }
 
+      .comment-author-link {
+        color: var(--color-text);
+        text-decoration: none;
+      }
+
+      .comment-author-link:hover {
+        color: var(--color-accent);
+        text-decoration: underline;
+      }
+
       .comment-date {
         color: var(--color-text-muted);
       }
