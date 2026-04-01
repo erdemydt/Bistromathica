@@ -16,6 +16,13 @@ if (!res.ok) {
 
 const post = await res.json();
 const readingTime = calculateReadingTime(post.body);
+const visibleCitations = Array.isArray(post.citations)
+  ? post.citations.filter((c: any) => {
+      const title = String(c?.title || '').trim();
+      const url = String(c?.url || '').trim();
+      return Boolean(title || url);
+    })
+  : [];
 
 // Get current user for comment section
 let user = null;
@@ -89,11 +96,11 @@ for (const match of matches) {
       <div class="draft-banner">This post is a draft and is only visible to you.</div>
     )}
 
-    {post.citations && post.citations.length > 0 && (
+    {visibleCitations.length > 0 && (
       <aside class="references" aria-label="References">
         <h2>References</h2>
         <ol class="references-list">
-          {post.citations.map((c: any) => (
+          {visibleCitations.map((c: any) => (
             <li id={`ref-${c.id}`}>
               {c.url
                 ? <a href={c.url} target="_blank" rel="noopener noreferrer">{c.title || c.url}</a>
@@ -105,7 +112,7 @@ for (const match of matches) {
     )}
   </article>
 
-  <script type="application/json" id="post-citations" set:text={JSON.stringify(post.citations || [])} />
+  <script type="application/json" id="post-citations" set:text={JSON.stringify(visibleCitations)} />
 
   <script>
     const citationsData = JSON.parse(
@@ -119,6 +126,13 @@ for (const match of matches) {
       if (!id) return;
       const citation = citationsMap[id];
       if (!citation) return;
+
+      const label = `[${id}]`;
+      const textNodes = Array.from(sup.childNodes).filter(
+        (node) => node.nodeType === Node.TEXT_NODE
+      );
+      textNodes.forEach((node) => node.remove());
+      sup.insertBefore(document.createTextNode(label), sup.firstChild);
 
       const popover = document.createElement('span');
       popover.className = 'citation-popover';

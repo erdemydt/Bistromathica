@@ -32,11 +32,13 @@ const SANITIZE_OPTIONS = {
 
 function sanitizeCitations(raw) {
   if (!Array.isArray(raw)) return [];
-  return raw.slice(0, 100).map((c, i) => ({
-    id: parseInt(c.id) || i + 1,
-    title: String(c.title || '').trim().substring(0, 200),
-    url: String(c.url || '').trim().substring(0, 2000),
-  }));
+  return raw.slice(0, 100)
+    .map((c, i) => ({
+      id: parseInt(c.id, 10) || i + 1,
+      title: String(c.title || '').trim().substring(0, 200),
+      url: String(c.url || '').trim().substring(0, 2000),
+    }))
+    .filter((citation) => citation.title || citation.url);
 }
 
 function stripHtml(html) {

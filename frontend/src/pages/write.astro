@@ -164,7 +164,7 @@ if (editSlug) {
 
   .citation-row {
     display: grid;
-    grid-template-columns: 2rem 1fr 1fr;
+    grid-template-columns: 2rem 1fr 1fr auto;
     gap: 0.5rem;
     align-items: center;
     margin-bottom: 0.5rem;
@@ -175,6 +175,12 @@ if (editSlug) {
     font-size: 0.8rem;
     color: var(--color-accent);
     font-weight: 600;
+  }
+
+  .citation-delete-btn {
+    white-space: nowrap;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.75rem;
   }
 
   .editor-content .tiptap sup.citation-mark {
@@ -214,5 +220,20 @@ if (editSlug) {
     display: flex;
     justify-content: flex-end;
     gap: 0.6rem;
+  }
+
+  @media (max-width: 640px) {
+    .citation-row {
+      grid-template-columns: 2rem 1fr;
+    }
+
+    .citation-row input[type='url'] {
+      grid-column: 2;
+    }
+
+    .citation-delete-btn {
+      grid-column: 2;
+      justify-self: start;
+    }
   }
 </style>

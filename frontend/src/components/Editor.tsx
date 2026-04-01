@@ -180,7 +180,10 @@ export default function PostEditor({ initialData }: EditorProps) {
 
   function insertCitation() {
     if (!editor) return;
-    const nextId = citations.length + 1;
+    const nextId = citations.reduce(
+      (max, citation) => Math.max(max, citation.id),
+      0,
+    ) + 1;
     editor
       .chain()
       .focus()
@@ -191,6 +194,33 @@ export default function PostEditor({ initialData }: EditorProps) {
       })
       .run();
     setCitations((prev) => [...prev, { id: nextId, title: "", url: "" }]);
+  }
+
+  function removeCitation(id: number) {
+    if (!editor) return;
+
+    const doc = new DOMParser().parseFromString(editor.getHTML(), "text/html");
+    doc.querySelectorAll(`sup[data-citation="${id}"]`).forEach((node) => node.remove());
+    const nextBody = doc.body.innerHTML.trim() || "<p></p>";
+    editor.commands.setContent(nextBody);
+
+    setCitations((prev) => prev.filter((citation) => citation.id !== id));
+  }
+
+  function updateCitationTitle(id: number, title: string) {
+    setCitations((prev) =>
+      prev.map((citation) =>
+        citation.id === id ? { ...citation, title } : citation,
+      ),
+    );
+  }
+
+  function updateCitationUrl(id: number, url: string) {
+    setCitations((prev) =>
+      prev.map((citation) =>
+        citation.id === id ? { ...citation, url } : citation,
+      ),
+    );
   }
 
   async function handleSubmit(submitStatus: string) {
@@ -208,6 +238,9 @@ export default function PostEditor({ initialData }: EditorProps) {
       .split(",")
       .map((t) => t.trim())
       .filter(Boolean);
+    const filteredCitations = citations.filter(
+      (citation) => citation.title.trim() || citation.url.trim(),
+    );
 
     const payload = {
       title,
@@ -216,7 +249,7 @@ export default function PostEditor({ initialData }: EditorProps) {
       cover_image: coverImage || undefined,
       status: submitStatus,
       tags,
-      citations,
+      citations: filteredCitations,
     };
 
     try {
@@ -245,7 +278,7 @@ export default function PostEditor({ initialData }: EditorProps) {
         excerpt,
         cover_image: coverImage,
         tags: tagsInput,
-        citations,
+        citations: filteredCitations,
       });
       setHasUnsavedChanges(false);
 
@@ -390,29 +423,28 @@ export default function PostEditor({ initialData }: EditorProps) {
       {citations.length > 0 && (
         <div className="citation-tray">
           <p className="citation-tray-title">Citations</p>
-          {citations.map((c, i) => (
+          {citations.map((c) => (
             <div key={c.id} className="citation-row">
               <span className="citation-index">[{c.id}]</span>
               <input
                 type="text"
                 placeholder="Title"
                 value={c.title}
-                onChange={(e) => {
-                  const updated = [...citations];
-                  updated[i] = { ...c, title: e.target.value };
-                  setCitations(updated);
-                }}
+                onChange={(e) => updateCitationTitle(c.id, e.target.value)}
               />
               <input
                 type="url"
                 placeholder="URL (https://...)"
                 value={c.url}
-                onChange={(e) => {
-                  const updated = [...citations];
-                  updated[i] = { ...c, url: e.target.value };
-                  setCitations(updated);
-                }}
+                onChange={(e) => updateCitationUrl(c.id, e.target.value)}
               />
+              <button
+                type="button"
+                className="btn btn-danger citation-delete-btn"
+                onClick={() => removeCitation(c.id)}
+              >
+                Remove
+              </button>
             </div>
           ))}
         </div>

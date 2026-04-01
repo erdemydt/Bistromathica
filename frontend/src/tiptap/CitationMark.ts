@@ -18,11 +18,10 @@ export const CitationMark = Mark.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    const id = HTMLAttributes['data-citation'];
     return [
       'sup',
       mergeAttributes(HTMLAttributes, { class: 'citation-mark' }),
-      `[${id}]`,
+      0,
     ];
   },
 
