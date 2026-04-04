@@ -9,6 +9,13 @@ const router = express.Router();
 // All admin routes require authentication + admin role
 router.use(authenticate, requireAdmin);
 
+function parsePagination(query) {
+  const page = Math.max(1, parseInt(query.page) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(query.limit) || 20));
+  const offset = (page - 1) * limit;
+  return { page, limit, offset };
+}
+
 // GET /api/admin/pending-users
 router.get('/pending-users', async (req, res, next) => {
   try {
@@ -55,15 +62,22 @@ router.delete('/users/:id', async (req, res, next) => {
 // GET /api/admin/users — all approved users
 router.get('/users', async (req, res, next) => {
   try {
+    const { page, limit, offset } = parsePagination(req.query);
+
+    const countResult = await pool.query('SELECT COUNT(*) FROM users WHERE approved = true');
+    const total = parseInt(countResult.rows[0].count);
+
     const result = await pool.query(
       `SELECT u.id, u.username, u.email, u.role, u.created_at,
               (SELECT COUNT(*) FROM posts p WHERE p.author_id = u.id) AS post_count
        FROM users u
        WHERE u.approved = true
-       ORDER BY u.created_at DESC`
+       ORDER BY u.created_at DESC
+       LIMIT $1 OFFSET $2`,
+      [limit, offset]
     );
     const users = result.rows.map(u => ({ ...u, post_count: parseInt(u.post_count) }));
-    res.json({ users });
+    res.json({ users, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } });
   } catch (err) {
     next(err);
   }
@@ -96,16 +110,23 @@ router.put('/users/:id/role',
 // GET /api/admin/posts — all posts
 router.get('/posts', async (req, res, next) => {
   try {
+    const { page, limit, offset } = parsePagination(req.query);
+
+    const countResult = await pool.query('SELECT COUNT(*) FROM posts');
+    const total = parseInt(countResult.rows[0].count);
+
     const result = await pool.query(
       `SELECT p.id, p.title, p.slug, p.status, p.created_at, p.published_at,
               u.username AS author,
               (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count
        FROM posts p
        JOIN users u ON p.author_id = u.id
-       ORDER BY p.created_at DESC`
+       ORDER BY p.created_at DESC
+       LIMIT $1 OFFSET $2`,
+      [limit, offset]
     );
     const posts = result.rows.map(p => ({ ...p, comment_count: parseInt(p.comment_count) }));
-    res.json({ posts });
+    res.json({ posts, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } });
   } catch (err) {
     next(err);
   }
@@ -159,6 +180,11 @@ router.put('/posts/:id/status',
 // GET /api/admin/comments — all comments
 router.get('/comments', async (req, res, next) => {
   try {
+    const { page, limit, offset } = parsePagination(req.query);
+
+    const countResult = await pool.query('SELECT COUNT(*) FROM comments');
+    const total = parseInt(countResult.rows[0].count);
+
     const result = await pool.query(
       `SELECT c.id, c.body, c.created_at,
               u.username AS author,
@@ -166,9 +192,11 @@ router.get('/comments', async (req, res, next) => {
        FROM comments c
        JOIN users u ON c.author_id = u.id
        JOIN posts p ON c.post_id = p.id
-       ORDER BY c.created_at DESC`
+       ORDER BY c.created_at DESC
+       LIMIT $1 OFFSET $2`,
+      [limit, offset]
     );
-    res.json({ comments: result.rows });
+    res.json({ comments: result.rows, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } });
   } catch (err) {
     next(err);
   }

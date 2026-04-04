@@ -17,12 +17,16 @@ if (!user || user.role !== 'admin') {
   return Astro.redirect('/');
 }
 
+const page = parseInt(Astro.url.searchParams.get('page') || '1');
+
 let posts: any[] = [];
+let pagination = { page: 1, limit: 20, total: 0, totalPages: 1 };
 try {
-  const res = await serverFetch('/admin/posts', cookie);
+  const res = await serverFetch(`/admin/posts?page=${page}&limit=20`, cookie);
   if (res.ok) {
     const data = await res.json();
     posts = data.posts;
+    pagination = data.pagination;
   }
 } catch {}
 ---
@@ -70,6 +74,20 @@ try {
       </tbody>
     </table>
   </div>
+
+  {pagination.totalPages > 1 && (
+    <nav class="pagination">
+      {pagination.page > 1 && (
+        <a href={`/admin/posts?page=${pagination.page - 1}`} class="btn">Previous</a>
+      )}
+      <span class="pagination-info">
+        Page {pagination.page} of {pagination.totalPages}
+      </span>
+      {pagination.page < pagination.totalPages && (
+        <a href={`/admin/posts?page=${pagination.page + 1}`} class="btn">Next</a>
+      )}
+    </nav>
+  )}
 </BaseLayout>
 
 <script>
@@ -165,5 +183,19 @@ try {
   .btn-sm {
     padding: 0.3rem 0.6rem;
     font-size: 0.75rem;
+  }
+
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 2rem;
+    font-family: var(--font-ui);
+  }
+
+  .pagination-info {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
   }
 </style>

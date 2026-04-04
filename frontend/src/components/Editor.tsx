@@ -64,6 +64,7 @@ export default function PostEditor({ initialData }: EditorProps) {
   const [citations, setCitations] = useState<Citation[]>(
     initialData?.citations || [],
   );
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [bodyVersion, setBodyVersion] = useState(0);
@@ -221,6 +222,30 @@ export default function PostEditor({ initialData }: EditorProps) {
         citation.id === id ? { ...citation, url } : citation,
       ),
     );
+  }
+
+  async function handleImageUpload(file: File) {
+    setUploading(true);
+    setError("");
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+      const res = await fetch(`${API_URL}/uploads`, {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Upload failed");
+        return;
+      }
+      setCoverImage(data.url);
+    } catch {
+      setError("Upload failed");
+    } finally {
+      setUploading(false);
+    }
   }
 
   async function handleSubmit(submitStatus: string) {
@@ -466,14 +491,43 @@ export default function PostEditor({ initialData }: EditorProps) {
         </div>
 
         <div className="form-group">
-          <label htmlFor="cover-image">Cover Image URL (optional)</label>
-          <input
-            id="cover-image"
-            type="url"
-            value={coverImage}
-            onChange={(e) => setCoverImage(e.target.value)}
-            placeholder="https://..."
-          />
+          <label htmlFor="cover-image">Cover Image (optional)</label>
+          <div className="cover-image-inputs">
+            <input
+              id="cover-image"
+              type="url"
+              value={coverImage}
+              onChange={(e) => setCoverImage(e.target.value)}
+              placeholder="Paste URL or upload below..."
+            />
+            <label className="btn upload-btn" htmlFor="cover-image-file">
+              {uploading ? "Uploading..." : "Upload"}
+            </label>
+            <input
+              id="cover-image-file"
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleImageUpload(file);
+                e.target.value = "";
+              }}
+              disabled={uploading}
+            />
+          </div>
+          {coverImage && (
+            <div className="cover-image-preview">
+              <img src={coverImage} alt="Cover preview" />
+              <button
+                type="button"
+                className="btn btn-danger cover-image-remove"
+                onClick={() => setCoverImage("")}
+              >
+                Remove
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="form-group">
