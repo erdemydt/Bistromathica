@@ -51,8 +51,8 @@ if (editSlug) {
     padding: 0.6rem 0.8rem;
     border: 1px solid var(--color-border);
     border-radius: 8px;
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--color-banner-bg);
+    color: var(--color-banner-text);
   }
 
   .toolbar {
@@ -77,11 +77,11 @@ if (editSlug) {
   }
 
   .toolbar-btn:hover {
-    background: #f5f5f4;
+    background: var(--color-hover-bg);
   }
 
   .toolbar-btn.active {
-    background: #e7e5e4;
+    background: var(--color-active-bg);
     color: var(--color-accent);
   }
 
@@ -112,8 +112,8 @@ if (editSlug) {
   }
 
   .editor-content .tiptap pre {
-    background: #1e1e1e;
-    color: #d4d4d4;
+    background: var(--color-code-bg);
+    color: var(--color-code-text);
     padding: 1rem;
     border-radius: 6px;
     font-family: var(--font-code);
@@ -183,6 +183,44 @@ if (editSlug) {
     font-size: 0.75rem;
   }
 
+  .cover-image-inputs {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .cover-image-inputs input[type='url'] {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .upload-btn {
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .cover-image-preview {
+    margin-top: 0.75rem;
+    position: relative;
+    display: inline-block;
+  }
+
+  .cover-image-preview img {
+    max-width: 100%;
+    max-height: 200px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    display: block;
+  }
+
+  .cover-image-remove {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.7rem;
+  }
+
   .editor-content .tiptap sup.citation-mark {
     color: var(--color-accent);
     font-size: 0.7em;
@@ -192,7 +230,7 @@ if (editSlug) {
   .leave-modal-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(28, 25, 23, 0.45);
+    background: var(--color-backdrop);
     display: flex;
     align-items: center;
     justify-content: center;

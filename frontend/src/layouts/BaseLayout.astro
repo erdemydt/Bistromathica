@@ -32,6 +32,14 @@ const { title = 'Blog' } = Astro.props;
       rel="stylesheet"
     />
   </head>
+  <script is:inline>
+    (function() {
+      var t = localStorage.getItem('theme');
+      if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
   <body>
     <Nav user={user} />
     <main>
@@ -65,6 +73,43 @@ const { title = 'Blog' } = Astro.props;
         --color-accent-hover: #92400e;
         --color-surface: #ffffff;
         --color-danger: #dc2626;
+        --color-danger-hover: #b91c1c;
+        --color-success: #16a34a;
+        --color-code-bg: #1e1e1e;
+        --color-code-text: #d4d4d4;
+        --color-inline-code-bg: #f5f5f4;
+        --color-hover-bg: #f5f5f4;
+        --color-active-bg: #e7e5e4;
+        --color-banner-bg: #fef3c7;
+        --color-banner-text: #92400e;
+        --color-tag-bg: #fef3c7;
+        --color-tag-text: #92400e;
+        --color-tag-hover-bg: #fde68a;
+        --color-backdrop: rgba(28, 25, 23, 0.45);
+      }
+
+      [data-theme="dark"] {
+        --color-bg: #1c1917;
+        --color-text: #e7e5e4;
+        --color-text-muted: #a8a29e;
+        --color-border: #44403c;
+        --color-accent: #f59e0b;
+        --color-accent-hover: #fbbf24;
+        --color-surface: #292524;
+        --color-danger: #ef4444;
+        --color-danger-hover: #dc2626;
+        --color-success: #22c55e;
+        --color-code-bg: #0d0d0d;
+        --color-code-text: #d4d4d4;
+        --color-inline-code-bg: #3a3733;
+        --color-hover-bg: #3a3733;
+        --color-active-bg: #44403c;
+        --color-banner-bg: #44393280;
+        --color-banner-text: #fbbf24;
+        --color-tag-bg: #44393280;
+        --color-tag-text: #fbbf24;
+        --color-tag-hover-bg: #57534e;
+        --color-backdrop: rgba(0, 0, 0, 0.6);
       }
 
       body {
@@ -107,8 +152,8 @@ const { title = 'Blog' } = Astro.props;
       }
 
       pre {
-        background: #1e1e1e;
-        color: #d4d4d4;
+        background: var(--color-code-bg);
+        color: var(--color-code-text);
         padding: 1.25rem;
         border-radius: 8px;
         overflow-x: auto;
@@ -118,7 +163,7 @@ const { title = 'Blog' } = Astro.props;
       }
 
       code:not(pre code) {
-        background: #f5f5f4;
+        background: var(--color-inline-code-bg);
         padding: 0.15em 0.4em;
         border-radius: 4px;
         font-size: 0.875em;
@@ -159,7 +204,7 @@ const { title = 'Blog' } = Astro.props;
       }
 
       button:hover, .btn:hover {
-        background: #f5f5f4;
+        background: var(--color-hover-bg);
       }
 
       .btn-primary {
@@ -180,8 +225,8 @@ const { title = 'Blog' } = Astro.props;
       }
 
       .btn-danger:hover {
-        background: #b91c1c;
-        border-color: #b91c1c;
+        background: var(--color-danger-hover);
+        border-color: var(--color-danger-hover);
       }
 
       input, textarea, select {
@@ -221,7 +266,7 @@ const { title = 'Blog' } = Astro.props;
       }
 
       .success-text {
-        color: #16a34a;
+        color: var(--color-success);
         font-family: var(--font-ui);
         font-size: 0.875rem;
         margin-top: 0.25rem;
@@ -239,14 +284,14 @@ const { title = 'Blog' } = Astro.props;
         font-size: 0.75rem;
         font-weight: 500;
         padding: 0.2rem 0.6rem;
-        background: #fef3c7;
-        color: #92400e;
+        background: var(--color-tag-bg);
+        color: var(--color-tag-text);
         border-radius: 999px;
         text-decoration: none;
       }
 
       .tag:hover {
-        background: #fde68a;
+        background: var(--color-tag-hover-bg);
         text-decoration: none;
       }
 

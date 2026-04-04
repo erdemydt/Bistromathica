@@ -42,7 +42,9 @@ function sanitizeCitations(raw) {
 }
 
 function stripHtml(html) {
-  return html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+  // Remove citation markers entirely (tag + content) before stripping other tags
+  const noCitations = html.replace(/<sup\b[^>]*data-citation[^>]*>.*?<\/sup>/gi, '');
+  return noCitations.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
 }
 
 async function generateUniqueSlug(title, excludePostId = null) {
@@ -384,7 +386,14 @@ router.put('/:slug',
 
       const newTitle = title || post.title;
       const newBody = rawBody ? sanitizeHtml(rawBody, SANITIZE_OPTIONS) : post.body;
-      const newExcerpt = excerpt !== undefined ? excerpt : post.excerpt;
+      let newExcerpt;
+      if (excerpt !== undefined) {
+        newExcerpt = excerpt;
+      } else if (rawBody) {
+        newExcerpt = stripHtml(newBody).substring(0, 300);
+      } else {
+        newExcerpt = post.excerpt;
+      }
       const newCoverImage = cover_image !== undefined ? cover_image : post.cover_image;
       const newStatus = status || post.status;
 
