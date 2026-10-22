@@ -33,15 +33,29 @@ cd "$PROJECT_DIR" || error "Project directory not found: $PROJECT_DIR"
 git pull origin main || error "Git pull failed"
 
 # ============================================
-# STEP 2 — Install dependencies (only if package.json changed)
+# STEP 1.5 — Install/switch to the Node version pinned in .nvmrc
+# ============================================
+command -v nvm >/dev/null || error "nvm not found — install it first"
+PREV_NODE=$(nvm version default)
+log "Ensuring Node $(cat .nvmrc) (latest patch)..."
+nvm install --reinstall-packages-from="$PREV_NODE" || error "Node install failed"
+nvm alias default "$(nvm version)" >/dev/null
+NEW_NODE=$(nvm version)
+if [ "$NEW_NODE" != "$PREV_NODE" ]; then
+    log "Node changed $PREV_NODE → $NEW_NODE, updating PM2 daemon..."
+    pm2 update || error "pm2 update failed"
+fi
+
+# ============================================
+# STEP 2 — Install dependencies exactly as pinned in package-lock.json
 # ============================================
 log "Installing backend dependencies..."
 cd "$BACKEND_DIR" || error "Backend directory not found"
-npm install --omit=dev || error "Backend npm install failed"
+npm ci --omit=dev || error "Backend npm install failed"
 
 log "Installing frontend dependencies..."
 cd "$FRONTEND_DIR" || error "Frontend directory not found"
-npm install || error "Frontend npm install failed"
+npm ci || error "Frontend npm install failed"
 
 # ============================================
 # STEP 3 — Build frontend
