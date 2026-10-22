@@ -43,8 +43,21 @@ function sanitizeCitations(raw) {
 
 function stripHtml(html) {
   // Remove citation markers entirely (tag + content) before stripping other tags
-  const noCitations = html.replace(/<sup\b[^>]*data-citation[^>]*>.*?<\/sup>/gi, '');
-  return noCitations.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+  const noCitations = String(html || '').replace(/<sup\b[^>]*data-citation[^>]*>.*?<\/sup>/gi, ' ');
+  return noCitations.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function normalizeExcerpt(value) {
+  const text = String(value || '')
+    // Defensive: remove any citation markup leaked into excerpts
+    .replace(/<sup\b[^>]*data-citation[^>]*>.*?<\/sup>/gi, ' ')
+    // Remove plain-text citation references like [1][2]
+    .replace(/(?:\s*\[\d{1,3}\])+/g, ' ')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return text.substring(0, 300);
 }
 
 async function generateUniqueSlug(title, excludePostId = null) {
@@ -179,6 +192,7 @@ router.get('/',
         );
         posts.push({
           ...post,
+          excerpt: normalizeExcerpt(post.excerpt),
           comment_count: parseInt(post.comment_count),
           tags: tagsResult.rows,
         });
@@ -281,7 +295,7 @@ router.get('/:slug', async (req, res, next) => {
       title: post.title,
       slug: post.slug,
       body: post.body,
-      excerpt: post.excerpt,
+      excerpt: normalizeExcerpt(post.excerpt),
       cover_image: post.cover_image,
       status: post.status,
       author: post.author,
@@ -320,7 +334,10 @@ router.post('/',
 
       const sanitizedBody = sanitizeHtml(rawBody, SANITIZE_OPTIONS);
       const slug = await generateUniqueSlug(title);
-      const autoExcerpt = excerpt || stripHtml(sanitizedBody).substring(0, 300);
+      const sourceExcerpt = typeof excerpt === 'string' && excerpt.trim()
+        ? excerpt
+        : stripHtml(sanitizedBody);
+      const autoExcerpt = normalizeExcerpt(sourceExcerpt);
       const publishedAt = status === 'published' ? new Date() : null;
 
       const result = await pool.query(
@@ -388,9 +405,9 @@ router.put('/:slug',
       const newBody = rawBody ? sanitizeHtml(rawBody, SANITIZE_OPTIONS) : post.body;
       let newExcerpt;
       if (excerpt !== undefined) {
-        newExcerpt = excerpt;
+        newExcerpt = normalizeExcerpt(excerpt);
       } else if (rawBody) {
-        newExcerpt = stripHtml(newBody).substring(0, 300);
+        newExcerpt = normalizeExcerpt(stripHtml(newBody));
       } else {
         newExcerpt = post.excerpt;
       }
